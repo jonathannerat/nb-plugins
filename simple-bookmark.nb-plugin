@@ -1,0 +1,77 @@
+#!/usr/bin/env bash
+###############################################################################
+# simple-bookmark.nb-plugin
+#
+# A plugin to add a bookmark without fetching the contents (url only)
+#
+# Dependencies:
+# - python-slugify: to create a bookmark with the title as a name
+# - (optional) recode: to decode html encoded characters
+###############################################################################
+
+_subcommands add "simplebm"
+_subcommands add "sb"
+
+usage="$(cat <<HEREDOC
+Usage:
+    nb simplebm <url> [<title>] [...]
+
+Alias:
+    nb sb
+
+Description:
+    Add the url as a bookmark, using the title as a name, but without fetching
+    the page. Extra arguments get passed to \`nb add\` function
+HEREDOC
+)" 
+
+_subcommands describe "simplebm" "$usage"
+_subcommands describe "sb" "$usage"
+
+_get_url_title() {
+    curl -sNL "$1" | tr -d "\n" | sed -e 's|.*<title>\(.*\)</title>.*|\1|I'
+}
+
+_simplebm() {
+    local url="$1"
+    shift
+    local title=
+    local _parsed_title=
+
+    if [ "$#" = 0 ]; then
+        title="$(_get_url_title "$url")"
+        _parsed_title=1
+    else
+        case "$1" in
+            -*)
+                title="$(_get_url_title "$url")"
+                _parsed_title=1 ;;
+            *)
+                title="$1"
+                shift ;;
+        esac
+    fi
+
+    if [ "$_parsed_title" ]; then
+        if  _command_exists "recode"; then
+            title="$(echo "$title" | recode html..utf8)"
+        fi
+        echo "$(_color_primary "Parsed title: ") $title"
+
+        local _yn=
+        IFS='' read -r -e -d $'\n' -p "$(_color_primary "Keep parsed title?") $(_color_brackets "Y/n") " __yn
+
+        case "${__yn}" in
+            [Nn]*) read -r -e -d $'\n' -p "$(_color_primary "New title: ")" title ;;
+        esac
+    fi
+
+    slug="$(slugify --max-length 64 "$title")"
+    _add --title "$title" --filename "$slug.bookmark.md" --content "<$url>" "$@"
+}
+
+# alias
+_sb() {
+    _simplebm "$@"
+}
+

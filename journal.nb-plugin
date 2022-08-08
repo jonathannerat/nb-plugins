@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+###############################################################################
+# journal.nb-plugin
+#
+# A plugin to create dated entries in a journal
+###############################################################################
+
+_subcommands add journal
+_subcommands add j
+
+usage="$(cat <<HEREDOC
+Usage:
+    nb journal [<date>]
+
+Alias:
+    nb j
+
+Description:
+    Create / edit an entry for today (or at another date) in the current notebook.
+HEREDOC
+)"
+
+_subcommands describe journal "$usage"
+_subcommands describe j "$usage"
+
+_journal() {
+    entrydate="${1:+-d $1}"
+    filename="journal/$(date $entrydate '+%F').md"
+
+    if [ -f "$NB_NOTEBOOK_PATH/$filename" ]; then
+        _edit "$filename"
+    else
+        _add "$filename" --title "$(date $entrydate '+%b %d, %Y')"
+    fi
+}
+
+_j() {
+    _journal "$@"
+}
