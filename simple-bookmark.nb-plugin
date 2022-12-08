@@ -32,6 +32,13 @@ _get_url_title() {
     curl -sNL "$1" | tr -d "\n" | sed -e 's|.*<title>\(.*\)</title>.*|\1|I'
 }
 
+# _slugify STRING MAX_LENGTH
+_slugify() {
+    out="$(echo "$1" | tr '[:upper:]' '[:lower:]' | tr -s ' ')"
+    out="${out# }"
+    echo "${out% }" | cut -c "1-$2" | tr ' ' -
+}
+
 _simplebm() {
     local url="$1"
     shift
@@ -66,8 +73,16 @@ _simplebm() {
         esac
     fi
 
-    slug="$(slugify --max-length 64 "$title")"
-    _add --title "$title" --filename "$slug.bookmark.md" --content "<$url>" "$@"
+
+    filename="$title.bookmark.md"
+    if ! command -v slugify >/dev/null; then
+        _warn echo "slugify not installed, using builtin slugifier"
+        filename="$(_slugify "$title" 64).bookmark.md"
+    else
+        filename="$(slugify --max-length 64 "$title").bookmark.md"
+    fi
+
+    _add --title "$title" --filename "$filename" --content "<$url>" "$@"
 }
 
 # alias
